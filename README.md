@@ -1,4 +1,84 @@
-# GitHub Copilot CLI SDKs
+# === Replace these placeholders before running ===
+UPSTREAM_OWNER="Mutigelink"               # upstream owner
+UPSTREAM_REPO="copilot-sdk-STOMA-wakeup"  # upstream repo (replace with exact)
+REPO_NAME="$UPSTREAM_REPO"                # local folder name after clone
+FORK_OWNER="stomde"                       # your GitHub username
+BRANCH="stoma-woken-up"
+# =================================================
+
+# 1) Fork upstream to your account and clone (uses gh)
+gh repo fork "${UPSTREAM_OWNER}/${UPSTREAM_REPO}" --clone --remote=true
+
+# if you already own the repo and just need to clone:
+# gh repo clone "${FORK_OWNER}/${REPO_NAME}"
+
+cd "${REPO_NAME}" || { echo "cd failed; check REPO_NAME"; exit 1; }
+
+# 2) Create the branch
+git switch -c "${BRANCH}"
+
+# 3) Create workflow + script + Makefile + README addition
+mkdir -p .github/workflows .github/scripts
+
+cat > .github/workflows/ci.yml <<'YML'
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Make scripts executable
+        run: chmod +x .github/scripts/test.sh || true
+
+      - name: Run repository checks
+        run: .github/scripts/test.sh
+YML
+
+cat > .github/scripts/test.sh <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Detecting project type and running checks..."
+
+# Go checks
+if [[ -f go.mod ]]; then
+  echo "==> Detected Go project (go.mod found). Running go checks..."
+  gofmt -l .
+  go vet ./...
+  go test ./... -v -race -coverprofile=coverage.out
+  echo "Go checks completed."
+fi
+
+# Python checks
+if [[ -f requirements.txt ]] || [[ -f pyproject.toml ]] || [[ -f setup.py ]]; then
+  echo "==> Detected Python project. Running Python checks..."
+  python -m pip install --upgrade pip setuptools wheel || true
+  if [[ -f requirements.txt ]]; then
+    python -m pip install -r requirements.txt || true/n# GitHub Copilot CLI SDKs
 
 ![GitHub Copilot SDK](./assets/RepoHeader_01.png)
 
